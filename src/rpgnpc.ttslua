@@ -88,7 +88,7 @@ end
 
 function plea3dCallback()
 	plea3d.TextTool.setValue(self.getDescription())
-	--plea3d.TextTool.setFontColor()
+	plea3d.TextTool.setFontColor(self.getColorTint())
 	--plea3d.TextTool.setFontSize()
 	updatePlea3d()
 end
