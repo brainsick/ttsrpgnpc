@@ -9,30 +9,20 @@ function onLoad(loadString)
 	if string.len(loadString) > 0 then
 		local saveState = JSON.decode(loadString)
 	end
-	startTimer()
 end
 
 function onSave()
 	return JSON.encode({})
 end
 
-function startTimer()
-	local result = Timer.create({
-		identifier = timerId,
-		function_name = 'issueCommands',
-		delay = 2,
-		repetitions = 0
-	})
-	assert(result, 'ERROR starting timer: ' .. timerId .. '!')
-end
-
-function onDestroy()
-	stopTimer()
-end
-
-function stopTimer()
-	local result = Timer.destroy(timerId)
-	assert(result, 'ERROR destroying timer: ' .. timerId .. '!')
+local lastUpdateTime = os.time()
+function onUpdate()
+	local now = os.time()
+	local deltaTime = now - lastUpdateTime
+	if deltaTime > 1 then
+		issueCommands()
+		lastUpdateTime = now
+	end
 end
 
 function math.sign(v)
@@ -81,6 +71,7 @@ end
 function shouldMove()
 	if self.getLock() then return false end
 	if self.held_by_color then return false end
+	if not self.resting then return false end
 
 	return true
 end
