@@ -1,0 +1,150 @@
+-- RPG NPC by Todd Ross
+-- http://steamcommunity.com/sharedfiles/filedetails/?id=1198422406
+
+local debug = false
+local pleaDelay = 120
+local timerId = 'RPGNPC' .. tostring({})
+
+function onLoad(loadString)
+	if string.len(loadString) > 0 then
+		local saveState = JSON.decode(loadString)
+	end
+	startTimer()
+end
+
+function onSave()
+	return JSON.encode({})
+end
+
+function startTimer()
+	local result = Timer.create({
+		identifier = timerId,
+		function_name = 'issueCommands',
+		delay = 2,
+		repetitions = 0
+	})
+	assert(result, 'ERROR starting timer: ' .. timerId .. '!')
+end
+
+function onDestroy()
+	stopTimer()
+end
+
+function stopTimer()
+	local result = Timer.destroy(timerId)
+	assert(result, 'ERROR destroying timer: ' .. timerId .. '!')
+end
+
+function math.sign(v)
+	return (v >= 0 and 1) or -1
+end
+
+function math.round(v, bracket)
+	bracket = bracket or 1
+	return math.floor(v/bracket + math.sign(v) * 0.5) * bracket
+end
+
+function normalizeColor(color)
+	return {
+		r = math.round(color.r * 255),
+		g = math.round(color.g * 255),
+		b = math.round(color.b * 255)
+	}
+end
+
+function colorCompare(a, b)
+	return a.r == b.r and	a.g == b.g and a.b == b.b
+end
+
+function issueCommands()
+	local color = normalizeColor(self.getColorTint())
+	debug = colorCompare(color, { r = 1, g = 1, b = 1 })
+	plea()
+	wander()
+end
+
+local lastPlea = os.time()
+function plea()
+	local now = os.time()
+	if now - lastPlea < pleaDelay then return end
+
+	local name = self.getName()
+	local description = self.getDescription()
+
+	if string.len(name) > 0 and string.len(description) > 0 then
+		printToAll('[NPC] <' .. name .. '> ' .. description, self.getColorTint())
+	end
+
+	lastPlea = now
+end
+
+function shouldMove()
+	if self.getLock() then return false end
+	if self.held_by_color then return false end
+
+	return true
+end
+
+-- move forward until we hit something, then turn
+function wander()
+	if not shouldMove() then return end
+
+	local targetPosition = self.getPosition()
+	local targetRotation = self.getRotation()
+
+	local distance = 1
+	local directionTransform = self.getTransformForward()
+
+	-- upright ourselves if needed
+	if self.getTransformUp().y < 0 then
+		targetRotation.x = 0
+		targetRotation.z = 0
+	end
+
+	if not isPathObstructed(directionTransform, distance) then
+		targetPosition = {
+			x = targetPosition.x + directionTransform.x * distance,
+			y = targetPosition.y + directionTransform.y * distance,
+			z = targetPosition.z + directionTransform.z * distance
+		}
+	else
+		local rotation = math.random(-180, 180)
+		targetRotation.y = (targetRotation.y + rotation) % 360
+	end
+
+	self.setPositionSmooth(targetPosition)
+	self.setRotationSmooth(targetRotation)
+end
+
+function isPathObstructed(direction, distance)
+	local origin = self.getBounds().center
+
+	local bounds = self.getBoundsNormalized()
+	local sizeScale = 0.8
+	local size = {
+		x = bounds.size.x * sizeScale,
+		y = bounds.size.y * sizeScale,
+		z = bounds.size.z * sizeScale
+	}
+
+	local orientation = self.getRotation()
+
+	local result = Physics.cast({
+		origin = origin,
+		direction = direction,
+		type = 3,
+		size = size,
+		orientation = orientation,
+		max_distance = distance,
+		debug = debug
+	})
+
+	local foundHit = false
+	for index, hit in ipairs(result) do
+		if self ~= hit.hit_object then
+			foundHit = true
+		end
+	end
+
+	return foundHit
+end
