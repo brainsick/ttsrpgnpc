@@ -3,6 +3,7 @@
 
 local debug = false
 local pleaDelay = 120
+local pleaDisplaySeconds = 10
 local timerId = 'RPGNPC' .. tostring({})
 
 function onLoad(loadString)
@@ -17,6 +18,7 @@ end
 
 local lastUpdateTime = os.time()
 function onUpdate()
+	updatePlea()
 	local now = os.time()
 	local deltaTime = now - lastUpdateTime
 	if deltaTime > 1 then
@@ -49,23 +51,65 @@ end
 function issueCommands()
 	local color = normalizeColor(self.getColorTint())
 	debug = colorCompare(color, { r = 1, g = 1, b = 1 })
-	plea()
 	wander()
 end
 
-local lastPlea = os.time()
-function plea()
+local plea3d = nil
+
+local lastPleaTime = os.time()
+function updatePlea()
 	local now = os.time()
-	if now - lastPlea < pleaDelay then return end
+	local deltaTime = now - lastPleaTime
 
-	local name = self.getName()
-	local description = self.getDescription()
+	local pleaText = self.getDescription()
 
-	if string.len(name) > 0 and string.len(description) > 0 then
-		printToAll('[NPC] <' .. name .. '> ' .. description, self.getColorTint())
+	if string.len(pleaText) > 0 and deltaTime < pleaDisplaySeconds then
+		createPlea3d()
+		updatePlea3d()
+	else
+		removePlea3d()
 	end
 
-	lastPlea = now
+	if deltaTime > pleaDelay then
+		lastPleaTime = now
+	end
+end
+
+function createPlea3d()
+	if plea3d then return end
+
+	plea3d = spawnObject({
+		type = '3DText',
+		callback = 'plea3dCallback',
+		callback_owner = self,
+		position = { x = 0, y = -1, z = 0 }
+	})
+end
+
+function plea3dCallback()
+	plea3d.TextTool.setValue(self.getDescription())
+	--plea3d.TextTool.setFontColor()
+	--plea3d.TextTool.setFontSize()
+	updatePlea3d()
+end
+
+function updatePlea3d()
+	if not plea3d then return end
+
+	local targetPosition = self.getPosition()
+	local targetRotation = self.getRotation()
+
+	targetPosition.y = targetPosition.y + 4 -- placeholder
+	targetRotation.y = (targetRotation.y + 180) % 360
+
+	plea3d.setPosition(targetPosition)
+	plea3d.setRotation(targetRotation)
+end
+
+function removePlea3d()
+	if not plea3d then return end
+	plea3d.destruct()
+	plea3d = nil
 end
 
 function shouldMove()
