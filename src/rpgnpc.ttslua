@@ -4,28 +4,138 @@
 local debug = false
 local pleaDelay = 120
 local pleaDisplaySeconds = 10
-local timerId = 'RPGNPC' .. tostring({})
+
+local enabled = false
+local pleaText = nil
+
+function emptyFunction() return end
+
+
+
+--- BEGIN STATE MANAGEMENT ---
 
 function onLoad(loadString)
 	if string.len(loadString) > 0 then
 		local saveState = JSON.decode(loadString)
+		enabled = saveState.enabled
+		pleaText = saveState.pleaText
 	end
+	createControlButton()
 end
 
 function onSave()
-	return JSON.encode({})
+	return JSON.encode({
+		enabled = enabled,
+		pleaText = pleaText
+	})
 end
 
-local lastUpdateTime = os.time()
-function onUpdate()
-	updatePlea()
-	local now = os.time()
-	local deltaTime = now - lastUpdateTime
-	if deltaTime > 1 then
-		issueCommands()
-		lastUpdateTime = now
-	end
+--- END STATE MANAGEMENT ---
+
+
+
+
+--- BEGIN CONTROL PANEL ---
+
+function createControlButton()
+	local data = {click_function = 'createControlPanel', function_owner = self, label = "", position = {0, -0.2, 0}, rotation = {180, 0, 0}, scale = {0.5, 0.5, 0.5}, width = 400, height = 400, font_size = 400, color = {1, 0, 0, 1}}
+	self.createButton(data)
 end
+
+local controlPanel = nil
+function createControlPanel()
+	if controlPanel and getObjectFromGUID(controlPanel.getGUID()) then return	end
+
+	local targetPosition = self.getPosition()
+	targetPosition.y = targetPosition.y + 4 -- placeholder
+
+	controlPanel = spawnObject({
+		type = 'BlockSquare',
+		position = targetPosition,
+		scale = { x = 10, y = 0.1, z = 10 },
+		callback = 'createControlPanelCallback',
+		callback_owner = self
+	})
+end
+
+function createControlPanelCallback()
+	controlPanel.setColorTint({ r = 0 , g = 0 , b = 0 })
+
+	local windowTitleData = {click_function = 'emptyFunction', function_owner = self, label = "RPG NPC Figurine Control", position = {0.05, 0.6, 0.45}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = { 1, 1, 1, 1 }}
+	controlPanel.createButton(windowTitleData)
+
+	local closeButtonData = {click_function = 'clickControlPanelButtonClose', function_owner = self, label = "X", position = {-0.45, 0.6, 0.45}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400}
+	controlPanel.createButton(closeButtonData)
+
+	local enabledLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Enabled:", position = {0.3, 0.6, 0.35}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(enabledLabelData)
+
+	local toggleEnableButtonData = {click_function = 'clickControlPanelButtonEnable', function_owner = self, label = (enabled and 'Y' or 'N'), position = {0, 0.6, 0.35}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400}
+	controlPanel.createButton(toggleEnableButtonData)
+
+	local pleaLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Plea:", position = {0.3, 0.6, 0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(pleaLabelData)
+
+	local pleaInputData = {input_function = 'inputControlPanelInputPlea', function_owner = self, value = pleaText, position = {-0.15, 0.6, 0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 2000, height = 420, font_size = 400}
+	controlPanel.createInput(pleaInputData)
+end
+
+function clickControlPanelButtonClose()
+	destroyControlPanel()
+end
+
+function clickControlPanelButtonEnable()
+	enabled = not enabled
+	refreshControlPanel()
+end
+
+function inputControlPanelInputPlea(objectInputTyped, playerColorTyped, input_value, selected)
+	pleaText = input_value
+end
+
+function refreshControlPanel()
+	if not controlPanel then return end
+
+	controlPanel.clearInputs()
+	controlPanel.clearButtons()
+
+	createControlPanelCallback()
+end
+
+function destroyControlPanel()
+	if not controlPanel then return end
+	controlPanel.destruct()
+	controlPanel = nil
+end
+
+--- END CONTROL PANEL ---
+
+
+
+
+
+
+
+
+
+--- BEGIN MAIN LOOP ---
+
+function onUpdate()
+	if not enabled then return end
+	updatePlea()
+	updateFigurine()
+end
+
+--- END MAIN LOOP ---
+
+
+
+
+
+
+
+
+
 
 function math.sign(v)
 	return (v >= 0 and 1) or -1
@@ -48,11 +158,20 @@ function colorCompare(a, b)
 	return a.r == b.r and	a.g == b.g and a.b == b.b
 end
 
-function issueCommands()
-	local color = normalizeColor(self.getColorTint())
-	debug = colorCompare(color, { r = 1, g = 1, b = 1 })
-	wander()
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+--- BEGIN PLEA --
 
 local plea3d = nil
 
@@ -61,9 +180,7 @@ function updatePlea()
 	local now = os.time()
 	local deltaTime = now - lastPleaTime
 
-	local pleaText = self.getDescription()
-
-	if string.len(pleaText) > 0 and deltaTime < pleaDisplaySeconds then
+	if pleaText and string.len(pleaText) > 0 and deltaTime < pleaDisplaySeconds then
 		createPlea3d()
 		updatePlea3d()
 	else
@@ -87,12 +204,13 @@ function createPlea3d()
 end
 
 function plea3dCallback()
-	plea3d.TextTool.setValue(self.getDescription())
+	plea3d.TextTool.setValue(pleaText)
 	plea3d.TextTool.setFontColor(self.getColorTint())
 	--plea3d.TextTool.setFontSize()
-	updatePlea3d()
+	--updatePlea3d()
 end
 
+-- the plea should follow the figurine around
 function updatePlea3d()
 	if not plea3d then return end
 
@@ -112,7 +230,38 @@ function removePlea3d()
 	plea3d = nil
 end
 
+--- END PLEA --
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local lastUpdateTime = os.time()
+function updateFigurine()
+	local now = os.time()
+	local deltaTime = now - lastUpdateTime
+	if deltaTime > 1 then
+
+		local color = normalizeColor(self.getColorTint())
+		debug = colorCompare(color, { r = 1, g = 1, b = 1 })
+		wander()
+
+
+		lastUpdateTime = now
+	end
+end
+
 function shouldMove()
+	if not enabled then return false end
 	if self.getLock() then return false end
 	if self.held_by_color then return false end
 	if not self.resting then return false end
