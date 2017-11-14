@@ -110,10 +110,11 @@ function createControlPanelCallback()
 	controlPanel.createButton(toggleBehaviorPatrolButtonData)
 
 	-- Pos 1 |O| Pos 2 |O|
-	local pos1LabelData = {click_function = 'emptyFunction', function_owner = self, label = "Position 1", position = {0.3, 0.6, 0.15}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 300, font_color = {1, 1, 1, 1}}
+	local color = (state.behavior == 'patrol' or state.behavior == 'idle') and colors.white or colors.panelAlternative
+	local pos1LabelData = {click_function = 'emptyFunction', function_owner = self, label = "Position 1", position = {0.3, 0.6, 0.15}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 300, font_color = color}
 	controlPanel.createButton(pos1LabelData)
 
-	local markPos1ButtonData = {click_function = 'clickControlPanelButtonMarkPos1', function_owner = self, label = 'O', position = {0.1, 0.6, 0.15}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 320, height = 320, font_size = 300, tooltip = "Mark current position"}
+	local markPos1ButtonData = {click_function = 'clickControlPanelButtonMarkPos1', function_owner = self, label = 'O', position = {0.1, 0.6, 0.15}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 320, height = 320, font_size = 300, color = color, tooltip = "Mark current position"}
 	controlPanel.createButton(markPos1ButtonData)
 
 	local color = state.behavior == 'patrol' and colors.white or colors.panelAlternative
@@ -163,7 +164,7 @@ function createControlPanelCallback()
 	controlPanel.createInput(pos2ZInputData)
 
 	-- Plea: |__|
-	local pleaLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Plea:", position = {0.375, 0.6, -0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 300, font_color = color}
+	local pleaLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Plea:", position = {0.375, 0.6, -0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 300, font_color = { 1, 1, 1, 1 }}
 	controlPanel.createButton(pleaLabelData)
 
 	local pleaInputData = {input_function = 'inputControlPanelInputPlea', function_owner = self, value = state.pleaText, position = {-0.1, 0.6, -0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 3600, height = 2220, font_size = 300}
