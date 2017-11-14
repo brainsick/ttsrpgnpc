@@ -5,8 +5,14 @@ local debug = false
 local pleaDelay = 120
 local pleaDisplaySeconds = 10
 
-local enabled = false
-local pleaText = nil
+local state = {
+	enabled = false,
+	upright = true,
+	behavior = 'none',
+	position1 = { x = 0, y = 0, z = 0 },
+	position2 = { x = 0, y = 0, z = 0 },
+	pleaText = nil,
+}
 
 function emptyFunction() return end
 
@@ -16,18 +22,13 @@ function emptyFunction() return end
 
 function onLoad(loadString)
 	if string.len(loadString) > 0 then
-		local saveState = JSON.decode(loadString)
-		enabled = saveState.enabled
-		pleaText = saveState.pleaText
+		state = JSON.decode(loadString)
 	end
 	createControlButton()
 end
 
 function onSave()
-	return JSON.encode({
-		enabled = enabled,
-		pleaText = pleaText
-	})
+	return JSON.encode(state)
 end
 
 --- END STATE MANAGEMENT ---
@@ -44,7 +45,7 @@ end
 
 local controlPanel = nil
 function createControlPanel()
-	if controlPanel and getObjectFromGUID(controlPanel.getGUID()) then return	end
+	if controlPanel and controlPanel == getObjectFromGUID(controlPanel.getGUID()) then return	end
 
 	local targetPosition = self.getPosition()
 	targetPosition.y = targetPosition.y + 4 -- placeholder
@@ -58,25 +59,111 @@ function createControlPanel()
 	})
 end
 
-function createControlPanelCallback()
-	controlPanel.setColorTint({ r = 0 , g = 0 , b = 0 })
+local colors = {
+	black = { 0, 0, 0, 1 },
+	white = { 1, 1, 1, 1 },
+	panelAlternative = { 0.75, 0.75, 0.75, 1 }
+}
 
+function createControlPanelCallback()
+
+	controlPanel.setColorTint(colors.black)
+
+	-- RPG NPC Figurine Control |X|
 	local windowTitleData = {click_function = 'emptyFunction', function_owner = self, label = "RPG NPC Figurine Control", position = {0.05, 0.6, 0.45}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = { 1, 1, 1, 1 }}
 	controlPanel.createButton(windowTitleData)
 
 	local closeButtonData = {click_function = 'clickControlPanelButtonClose', function_owner = self, label = "X", position = {-0.45, 0.6, 0.45}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400}
 	controlPanel.createButton(closeButtonData)
 
+	-- Enabled: |N| Upright: |N|
 	local enabledLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Enabled:", position = {0.3, 0.6, 0.35}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
 	controlPanel.createButton(enabledLabelData)
 
-	local toggleEnableButtonData = {click_function = 'clickControlPanelButtonEnable', function_owner = self, label = (enabled and 'Y' or 'N'), position = {0, 0.6, 0.35}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400}
+	local toggleEnableButtonData = {click_function = 'clickControlPanelButtonEnable', function_owner = self, label = (state.enabled and 'Y' or 'N'), position = {0.1, 0.6, 0.35}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400}
 	controlPanel.createButton(toggleEnableButtonData)
 
-	local pleaLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Plea:", position = {0.3, 0.6, 0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	local uprightLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Upright:", position = {-0.225, 0.6, 0.35}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(uprightLabelData)
+
+	local toggleUprightButtonData = {click_function = 'clickControlPanelButtonUpright', function_owner = self, label = (state.upright and 'Y' or 'N'), position = {-0.425, 0.6, 0.35}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400}
+	controlPanel.createButton(toggleUprightButtonData)
+
+	-- Behavior: |N| |I| |R| |P|
+	local behaviorLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Behavior:", position = {0.3, 0.6, 0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(behaviorLabelData)
+
+	local color = state.behavior == 'none' and colors.white or colors.panelAlternative
+	local toggleBehaviorNoneButtonData = {click_function = 'clickControlPanelButtonBehaviorNone', function_owner = self, label = "N", position = {0.05, 0.6, 0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400, color = color}
+	controlPanel.createButton(toggleBehaviorNoneButtonData)
+
+	local color = state.behavior == 'idle' and colors.white or colors.panelAlternative
+	local toggleBehaviorIdleButtonData = {click_function = 'clickControlPanelButtonBehaviorIdle', function_owner = self, label = "I", position = {-0.1, 0.6, 0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400, color = color}
+	controlPanel.createButton(toggleBehaviorIdleButtonData)
+
+	local color = state.behavior == 'roaming' and colors.white or colors.panelAlternative
+	local toggleBehaviorRoamingButtonData = {click_function = 'clickControlPanelButtonBehaviorRoaming', function_owner = self, label = "R", position = {-0.25, 0.6, 0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400, color = color}
+	controlPanel.createButton(toggleBehaviorRoamingButtonData)
+
+	local color = state.behavior == 'patrol' and colors.white or colors.panelAlternative
+	local toggleBehaviorPatrolButtonData = {click_function = 'clickControlPanelButtonBehaviorPatrol', function_owner = self, label = "P", position = {-0.4, 0.6, 0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400, color = color}
+	controlPanel.createButton(toggleBehaviorPatrolButtonData)
+
+	-- Pos 1 |O| Pos 2 |O|
+	local pos1LabelData = {click_function = 'emptyFunction', function_owner = self, label = "Pos 1:", position = {0.3, 0.6, 0.15}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(pos1LabelData)
+
+	local markPos1ButtonData = {click_function = 'clickControlPanelButtonMarkPos1', function_owner = self, label = 'O', position = {0.1, 0.6, 0.15}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400}
+	controlPanel.createButton(markPos1ButtonData)
+
+	local pos2LabelData = {click_function = 'emptyFunction', function_owner = self, label = "Pos 2:", position = {-0.2, 0.6, 0.15}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(pos2LabelData)
+
+	local markPos2ButtonData = {click_function = 'clickControlPanelButtonMarkPos2', function_owner = self, label = 'O', position = {-0.4, 0.6, 0.15}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 400, font_size = 400}
+	controlPanel.createButton(markPos2ButtonData)
+
+	-- X: |_| Y: |_| Z: |_| X: |_| Y: |_| Z: |_|
+	local pos1XLabelData = {click_function = 'emptyFunction', function_owner = self, label = "X:", position = {0.457, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(pos1XLabelData)
+
+	local pos1XInputData = {input_function = 'inputControlPanelPos1X', function_owner = self, value = state.position1.x, position = {0.374, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 420, font_size = 400, validation = 3}
+	controlPanel.createInput(pos1XInputData)
+
+	local pos1YLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Y:", position = {0.291, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(pos1YLabelData)
+
+	local pos1YInputData = {input_function = 'inputControlPanelPos1Y', function_owner = self, value = state.position1.y, position = {0.208, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 420, font_size = 400, validation = 3}
+	controlPanel.createInput(pos1YInputData)
+
+	local pos1ZLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Z:", position = {0.125, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(pos1ZLabelData)
+
+	local pos1ZInputData = {input_function = 'inputControlPanelPos1Z', function_owner = self, value = state.position1.z, position = {0.042, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 420, font_size = 400, validation = 3}
+	controlPanel.createInput(pos1ZInputData)
+
+	local pos2XLabelData = {click_function = 'emptyFunction', function_owner = self, label = "X:", position = {-0.042, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(pos2XLabelData)
+
+	local pos2XInputData = {input_function = 'inputControlPanelPos2X', function_owner = self, value = state.position2.x, position = {-0.125, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 420, font_size = 400, validation = 3}
+	controlPanel.createInput(pos2XInputData)
+
+	local pos2YLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Y:", position = {-0.208, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(pos2YLabelData)
+
+	local pos2YInputData = {input_function = 'inputControlPanelPos2Y', function_owner = self, value = state.position2.y, position = {-0.291, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 420, font_size = 400, validation = 3}
+	controlPanel.createInput(pos2YInputData)
+
+	local pos2ZLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Z:", position = {-0.374, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
+	controlPanel.createButton(pos2ZLabelData)
+
+	local pos2ZInputData = {input_function = 'inputControlPanelPos2Z', function_owner = self, value = state.position2.z, position = {-0.457, 0.6, 0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 400, height = 420, font_size = 400, validation = 3}
+	controlPanel.createInput(pos2ZInputData)
+
+	-- Plea: |__|
+	local pleaLabelData = {click_function = 'emptyFunction', function_owner = self, label = "Plea:", position = {0.375, 0.6, -0.05}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 0, height = 0, font_size = 400, font_color = {1, 1, 1, 1}}
 	controlPanel.createButton(pleaLabelData)
 
-	local pleaInputData = {input_function = 'inputControlPanelInputPlea', function_owner = self, value = pleaText, position = {-0.15, 0.6, 0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 2000, height = 420, font_size = 400}
+	local pleaInputData = {input_function = 'inputControlPanelInputPlea', function_owner = self, value = state.pleaText, position = {-0.05, 0.6, -0.25}, rotation = {0, 180, 0}, scale = {0.1, 1, 0.1}, width = 3200, height = 2020, font_size = 400}
 	controlPanel.createInput(pleaInputData)
 end
 
@@ -85,12 +172,77 @@ function clickControlPanelButtonClose()
 end
 
 function clickControlPanelButtonEnable()
-	enabled = not enabled
+	state.enabled = not state.enabled
 	refreshControlPanel()
 end
 
+function clickControlPanelButtonUpright()
+	state.upright = not state.upright
+	refreshControlPanel()
+end
+
+function clickControlPanelButtonBehaviorNone()
+	state.behavior = 'none'
+	refreshControlPanel()
+end
+
+function clickControlPanelButtonBehaviorIdle()
+	state.behavior = 'idle'
+	refreshControlPanel()
+end
+
+function clickControlPanelButtonBehaviorRoaming()
+	state.behavior = 'roaming'
+	refreshControlPanel()
+end
+
+function clickControlPanelButtonBehaviorPatrol()
+	state.behavior = 'patrol'
+	refreshControlPanel()
+end
+
+function clickControlPanelButtonMarkPos1()
+	local position = self.getPosition()
+	state.position1.x = position.x
+	state.position1.y = position.y
+	state.position1.z = position.z
+	refreshControlPanel()
+end
+
+function clickControlPanelButtonMarkPos2()
+	local position = self.getPosition()
+	state.position2.x = position.x
+	state.position2.y = position.y
+	state.position2.z = position.z
+	refreshControlPanel()
+end
+
+function inputControlPanelPos1X(objectInputTyped, playerColorTyped, input_value, selected)
+	state.position1.x = input_value
+end
+
+function inputControlPanelPos1Y(objectInputTyped, playerColorTyped, input_value, selected)
+	state.position1.y = input_value
+end
+
+function inputControlPanelPos1Z(objectInputTyped, playerColorTyped, input_value, selected)
+	state.position1.z = input_value
+end
+
+function inputControlPanelPos2X(objectInputTyped, playerColorTyped, input_value, selected)
+	state.position2.x = input_value
+end
+
+function inputControlPanelPos2Y(objectInputTyped, playerColorTyped, input_value, selected)
+	state.position2.y = input_value
+end
+
+function inputControlPanelPos2Z(objectInputTyped, playerColorTyped, input_value, selected)
+	state.position2.z = input_value
+end
+
 function inputControlPanelInputPlea(objectInputTyped, playerColorTyped, input_value, selected)
-	pleaText = input_value
+	state.pleaText = input_value
 end
 
 function refreshControlPanel()
@@ -121,9 +273,10 @@ end
 --- BEGIN MAIN LOOP ---
 
 function onUpdate()
-	if not enabled then return end
+	if not state.enabled then return end
+	updateUpright()
 	updatePlea()
-	updateFigurine()
+	updateBehavior()
 end
 
 --- END MAIN LOOP ---
@@ -162,7 +315,16 @@ end
 
 
 
-
+function updateUpright()
+	if not state.upright then return end
+	-- upright ourselves if needed
+	if self.resting and self.getTransformUp().y < 0 then
+		local targetRotation = self.getRotation()
+		targetRotation.x = 0
+		targetRotation.z = 0
+		self.setRotationSmooth(targetRotation)
+	end
+end
 
 
 
@@ -180,7 +342,7 @@ function updatePlea()
 	local now = os.time()
 	local deltaTime = now - lastPleaTime
 
-	if pleaText and string.len(pleaText) > 0 and deltaTime < pleaDisplaySeconds then
+	if state.pleaText and string.len(state.pleaText) > 0 and deltaTime < pleaDisplaySeconds then
 		createPlea3d()
 		updatePlea3d()
 	else
@@ -204,7 +366,7 @@ function createPlea3d()
 end
 
 function plea3dCallback()
-	plea3d.TextTool.setValue(pleaText)
+	plea3d.TextTool.setValue(state.pleaText)
 	plea3d.TextTool.setFontColor(self.getColorTint())
 	--plea3d.TextTool.setFontSize()
 	--updatePlea3d()
@@ -246,22 +408,32 @@ end
 
 
 local lastUpdateTime = os.time()
-function updateFigurine()
+function updateBehavior()
 	local now = os.time()
 	local deltaTime = now - lastUpdateTime
 	if deltaTime > 1 then
 
+		-- this should probably just be state like everything else now
 		local color = normalizeColor(self.getColorTint())
 		debug = colorCompare(color, { r = 1, g = 1, b = 1 })
-		wander()
 
+		if shouldMove() then
+			if state.behavior == 'none' then
+				do end
+			elseif state.behavior == 'idle' then
+				doBehaviorIdle()
+			elseif state.behavior == 'roaming' then
+				doBehaviorRoaming()
+			elseif state.behavior == 'patrol' then
+				doBehaviorPatrol()
+			end
+		end
 
 		lastUpdateTime = now
 	end
 end
 
 function shouldMove()
-	if not enabled then return false end
 	if self.getLock() then return false end
 	if self.held_by_color then return false end
 	if not self.resting then return false end
@@ -269,21 +441,51 @@ function shouldMove()
 	return true
 end
 
--- move forward until we hit something, then turn
-function wander()
-	if not shouldMove() then return end
+function cloneVector(vector)
+	return { x = vector.x, y = vector.y, z = vector.z }
+end
 
+-- move around a marked position
+function doBehaviorIdle()
+	local targetPosition = cloneVector(state.position1)
+	local targetRotation = self.getRotation()
+
+	local x = math.random(-5, 5) / 10
+	local z = math.random(-5, 5) / 10
+	local ry = math.random(-45, 45)
+
+	targetPosition.x = targetPosition.x + x
+	targetPosition.z = targetPosition.z + z
+
+	targetRotation.y = targetRotation.y + ry
+
+	self.setPositionSmooth(targetPosition)
+	self.setRotationSmooth(targetRotation)
+end
+
+-- ping pongs between position 1 and position 2, eventually, hope to have it "roam" there
+local currentPatrolPoint = 1
+function doBehaviorPatrol()
+	local targetPosition = self.getPosition()
+
+	if currentPatrolPoint == 1 then
+		targetPosition = cloneVector(state.position1)
+		currentPatrolPoint = 2
+	else
+		targetPosition = cloneVector(state.position2)
+		currentPatrolPoint = 1
+	end
+
+	self.setPositionSmooth(targetPosition)
+end
+
+-- move forward until we would hit something, then turn
+function doBehaviorRoaming()
 	local targetPosition = self.getPosition()
 	local targetRotation = self.getRotation()
 
 	local distance = 1
 	local directionTransform = self.getTransformForward()
-
-	-- upright ourselves if needed
-	if self.getTransformUp().y < 0 then
-		targetRotation.x = 0
-		targetRotation.z = 0
-	end
 
 	if not isPathObstructed(directionTransform, distance) then
 		targetPosition = {
